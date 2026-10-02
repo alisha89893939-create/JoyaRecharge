@@ -1,0 +1,61 @@
+name: Build Joya Recharge APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Extract Android project
+        run: |
+          mkdir -p android_project
+          unzip -o JoyaRecharge_Android_Project.zip -d android_project
+
+      - name: Find Gradle project
+        run: |
+          echo "Searching for Gradle project..."
+          find android_project -name gradlew -type f -print
+
+      - name: Build APK
+        run: |
+          GRADLEW=$(find android_project -name gradlew -type f | head -n 1)
+
+          if [ -z "$GRADLEW" ]; then
+            echo "ERROR: gradlew file not found inside Android project."
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$GRADLEW")
+          cd "$PROJECT_DIR"
+
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Find APK
+        run: |
+          echo "APK files:"
+          find android_project -type f -name "*.apk" -print
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: JoyaRecharge-APK
+          path: android_project/**/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
